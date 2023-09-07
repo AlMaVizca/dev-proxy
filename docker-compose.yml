@@ -1,0 +1,36 @@
+version: "3.3"
+
+services:
+  proxy:
+    image: traefik:latest
+    restart: "always"
+    hostname: proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - lb
+    command:
+      - "--accesslog=true"
+      - "--log=true"
+      - "--log.level=DEBUG"
+      - "--api=true"
+      - "--api.insecure=true"
+      - "--api.debug=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.ws"
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: lb
+      traefik.http.routers.traefik.rule: "Host(`${SERVICE_NAME}.${DOMAIN}`)"
+      traefik.http.routers.traefik.tls: "false"
+      traefik.http.services.traefik.loadbalancer.server.port: 8080
+
+networks:
+  lb:
+    external: true
+    name: lb

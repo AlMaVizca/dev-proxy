@@ -1,0 +1,73 @@
+* Dev proxy
+
+It's common for developers to work in more than one project at the same time and
+using different tools, which usually means different ports, if those ports
+implement the HTTP protocol, then there is no need to remember the ports
+number, and it could be accessed using DNS.
+
+This repository is a showcase to simplify this access.
+
+** Requirements
+- Docker engine
+- docker-compose
+- Use a local DNS
+
+**  Configurations required
+First we need to resolve a domain to localhost.
+
+*** Network manager and dnsmasq
+#+NAME: /etc/NetworkManager/dnsmasq.d/nameservers.conf
+#+BEGIN_EXAMPLE
+address=/localdev/127.0.0.1
+#+END_EXAMPLE
+
+and restart the service:
+#+BEGIN_SRC shell
+  systemctl restart NetworkManager
+#+END_SRC
+
+** Start the service
+Only the first time it is required to create the network
+#+BEGIN_SRC shell
+  make network
+#+END_SRC
+
+Then running make start it's enough. As it's the service will be always working,
+if you don't want it to happen, please modify the restart configuration in docker-compose.yml
+#+BEGIN_SRC shell
+  make start
+#+END_SRC
+
+Check that you can access to http://proxy.localenv
+
+** Configure backend services
+With that working adding the following configurations to a service in a
+docker-compose:
+#+BEGIN_EXAMPLE
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.service-name.rule: "Host(`example.localdev`)"
+      traefik.http.services.service-name.loadbalancer.server.port: "<change-port>"
+      traefik.webservice.service-name.entryPoints: http,ws
+      traefik.http.routers.service-name.tls: "false"
+      traefik.docker.network: lb
+    networks:
+      lb:
+        aliases:
+          - ${SERVICE_NAME}.${DOMAIN}
+#+END_EXAMPLE
+
+Please be sure to modify service-name to avoid duplications, the domain
+'example.localdev' and also set the right port number on <change-port>
+
+Then at the bottom of the docker-compose, you have to declare the access to the
+network:
+#+BEGIN_EXAMPLE
+networks:
+  lb:
+    name: lb
+    external: true
+#+END_EXAMPLE
+
+With that in place and after you start the backend service, you will be able to
+access it through example.localdev
