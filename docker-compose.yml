@@ -1,12 +1,11 @@
 version: "3.3"
 
 services:
-  proxy:
+  traefik:
     image: docker.io/traefik:latest
-    hostname: proxy
-    container_name: proxy
+    container_name: traefik
     ports:
-      - "${BIND_IP}:80:80"
+      - "${SERVICE_IP}:${PORT_traefik}:80"
     volumes:
       - "${DOCKER_SOCKET}:/var/run/docker.sock"
     networks:

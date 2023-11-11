@@ -1,0 +1,11 @@
+[Unit]
+Description=Socket for EXAMPLE
+
+
+[Socket]
+
+ListenStream=GLOBAL_IP:GLOBAL_PORT
+Transparent=True
+
+[Install]
+WantedBy=sockets.target

@@ -26,10 +26,19 @@ restart: ## Restart all or c=<name> containers
 status: ## Show status of containers
 	@$(DOCKER_COMPOSE) -f $(DOCKER_COMPOSE_FILE) ps
 
+start-service: # traefik proxy
+	@docker-compose up traefik
+
+stop-service: # traefik proxy
+	@docker-compose stop traefik
+
 ps: status ## Alias of status
 
 clean: confirm ## Clean all data
 	@$(DOCKER_COMPOSE) -f $(DOCKER_COMPOSE_FILE) down
 
 network: ## Create proxy network
-	-@docker network create $(NETWORK_NAME)
+	-@docker network create lb
+
+install-sockets: ## Enable socket activation
+	./socket-activation/setup.sh traefik

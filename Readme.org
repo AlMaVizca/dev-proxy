@@ -1,5 +1,17 @@
-* Dev proxy
+#+Title: Development proxy
 
+/Feel free to raise any issue or PR/
+
+**** Index                                                                      :TOC:
+- [[#motivation][Motivation]]
+- [[#requirements][Requirements]]
+-  [[#configurations-required][Configurations required]]
+  - [[#network-manager-and-dnsmasq][Network manager and dnsmasq]]
+- [[#start-the-service][Start the service]]
+- [[#configure-backend-services][Configure backend services]]
+- [[#document-socket-activation][Document socket activation]]
+
+* Motivation
 It's common for developers to work in more than one project at the same time and
 using different tools, which usually means different ports, if those ports
 implement the HTTP protocol, then there is no need to remember the ports
@@ -7,18 +19,18 @@ number, and it could be accessed using DNS.
 
 This repository is a showcase to simplify this access.
 
-** Requirements
-- Docker engine
+* Requirements
+- Docker engine or podman
 - docker-compose
 - Use a local DNS
 
-**  Configurations required
-First we need to resolve a domain to localhost.
+*  Configurations required
+In order to resolve any subdomain, is possible to use dnsmasq.
 
-*** Network manager and dnsmasq
+** Network manager and dnsmasq
 #+NAME: /etc/NetworkManager/dnsmasq.d/nameservers.conf
 #+BEGIN_EXAMPLE
-address=/localdev/127.0.0.1
+address=/docker/172.17.0.1
 #+END_EXAMPLE
 
 and restart the service:
@@ -26,7 +38,7 @@ and restart the service:
   systemctl restart NetworkManager
 #+END_SRC
 
-** Start the service
+* Start the service
 Only the first time it is required to create the network
 #+BEGIN_SRC shell
   make network
@@ -38,16 +50,16 @@ if you don't want it to happen, please modify the restart configuration in docke
   make start
 #+END_SRC
 
-Check that you can access to http://proxy.localenv
+Check that you can access to http://proxy.docker
 
-** Configure backend services
+* Configure backend services
 With that working adding the following configurations to a service in a
 docker-compose:
 #+BEGIN_EXAMPLE
     labels:
       traefik.enable: "true"
-      traefik.http.routers.service-name.rule: "Host(`example.localdev`)"
-      traefik.http.services.service-name.loadbalancer.server.port: "<change-port>"
+      traefik.http.routers.service-name.rule: "Host(`example.docker`)"
+      traefik.http.services.service-name.loadbalancer.server.port: "<example-application-port>"
       traefik.webservice.service-name.entryPoints: http,ws
       traefik.http.routers.service-name.tls: "false"
       traefik.docker.network: lb
@@ -58,7 +70,7 @@ docker-compose:
 #+END_EXAMPLE
 
 Please be sure to modify service-name to avoid duplications, the domain
-'example.localdev' and also set the right port number on <change-port>
+'example.docker and also set the right port number on <example-application-port>
 
 Then at the bottom of the docker-compose, you have to declare the access to the
 network:
@@ -70,4 +82,6 @@ networks:
 #+END_EXAMPLE
 
 With that in place and after you start the backend service, you will be able to
-access it through example.localdev
+access it through example.docker
+
+* TODO Document socket activation

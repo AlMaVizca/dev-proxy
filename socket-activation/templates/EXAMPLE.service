@@ -1,0 +1,13 @@
+[Unit]
+Description=Intermediate proxy socket for EXAMPLE
+
+Requires=EXAMPLE-container.service
+After=EXAMPLE-container.service
+Requires=EXAMPLE.socket
+After=EXAMPLE.socket
+
+[Service]
+EnvironmentFile=SERVICE_PATH/.env
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time="10m" ${SERVICE_IP}:${PORT_EXAMPLE}
+
+NonBlocking=true

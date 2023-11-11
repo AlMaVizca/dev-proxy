@@ -1,0 +1,12 @@
+[Unit]
+Description=EXAMPLE container
+
+[Service]
+EnvironmentFile=SERVICE_PATH/.env
+# Use docker or podman, as you prefer it
+WorkingDirectory=SERVICE_PATH
+ExecStart=make start-service c=EXAMPLE
+ExecStop=make stop-service c=EXAMPLE
+
+[Install]
+WantedBy=multi-user.target
