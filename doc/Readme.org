@@ -1,6 +1,5 @@
-# Created 2023-12-12 Tue 13:01
-#+author: Aldo María Vizcaino
-#+export_file_name: ../Readme.org
+#+Title: Development proxy
+#+EXPORT_FILE_NAME: ../Readme.org
 
 * Development proxy
 /Feel free to raise any issue or PR/
@@ -8,7 +7,7 @@
 **** Index                                                                      :TOC:
 - [[#motivation][Motivation]]
 - [[#requirements][Requirements]]
-- [[#configurations-required][Configurations required]]
+-  [[#configurations-required][Configurations required]]
   - [[#network-manager-and-dnsmasq][Network manager and dnsmasq]]
 - [[#start-the-service][Start the service]]
 - [[#configure-backend-services][Configure backend services]]
@@ -29,62 +28,62 @@ This repository is a showcase to simplify this access.
 - docker-compose
 - Use a local DNS
 
-* Configurations required
+*  Configurations required
 In order to resolve any subdomain, is possible to use dnsmasq.
 
 ** Network manager and dnsmasq
-#+name: /etc/NetworkManager/dnsmasq.d/nameservers.conf
-#+begin_example
-  address=/docker/172.17.0.1
-#+end_example
+#+NAME: /etc/NetworkManager/dnsmasq.d/nameservers.conf
+#+BEGIN_EXAMPLE
+address=/docker/172.17.0.1
+#+END_EXAMPLE
 
 and restart the service:
-#+begin_src shell
+#+BEGIN_SRC shell
   systemctl restart NetworkManager
-#+end_src
+#+END_SRC
 
 * Start the service
 Only the first time it is required to create the network
-#+begin_src shell
+#+BEGIN_SRC shell
   make network
-#+end_src
+#+END_SRC
 
 Then running make start it's enough. As it's the service will be always working,
 if you don't want it to happen, please modify the restart configuration in docker-compose.yml
-#+begin_src shell
+#+BEGIN_SRC shell
   make start
-#+end_src
+#+END_SRC
 
 Check that you can access to http://proxy.docker
 
 * Configure backend services
 With that working adding the following configurations to a service in a
 docker-compose:
-#+begin_example
-  labels:
-    traefik.enable: "true"
-    traefik.http.routers.service-name.rule: "Host(`example.docker`)"
-    traefik.http.services.service-name.loadbalancer.server.port: "<example-application-port>"
-    traefik.webservice.service-name.entryPoints: http,ws
-    traefik.http.routers.service-name.tls: "false"
-    traefik.docker.network: lb
-  networks:
-    lb:
-      aliases:
-        - ${SERVICE_NAME}.${DOMAIN}
-#+end_example
+#+BEGIN_EXAMPLE
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.service-name.rule: "Host(`example.docker`)"
+      traefik.http.services.service-name.loadbalancer.server.port: "<example-application-port>"
+      traefik.webservice.service-name.entryPoints: http,ws
+      traefik.http.routers.service-name.tls: "false"
+      traefik.docker.network: lb
+    networks:
+      lb:
+        aliases:
+          - ${SERVICE_NAME}.${DOMAIN}
+#+END_EXAMPLE
 
 Please be sure to modify service-name to avoid duplications, the domain
 'example.docker and also set the right port number on <example-application-port>
 
 Then at the bottom of the docker-compose, you have to declare the access to the
 network:
-#+begin_example
-  networks:
-    lb:
-      name: lb
-      external: true
-#+end_example
+#+BEGIN_EXAMPLE
+networks:
+  lb:
+    name: lb
+    external: true
+#+END_EXAMPLE
 
 With that in place and after you start the backend service, you will be able to
 access it through example.docker
@@ -110,19 +109,7 @@ as well.
 - The Socket service.
   It's not a service per se, but a definition on where do we want systemd to be
   monitoring or waiting for incomming communication.
-  #+begin_example
-    [Unit]
-    Description=Socket for EXAMPLE
-
-
-    [Socket]
-
-    ListenStream=GLOBAL_IP:GLOBAL_PORT
-    Transparent=True
-
-    [Install]
-    WantedBy=sockets.target
-  #+end_example
+  #+INCLUDE: "../socket-activation/templates/EXAMPLE.socket" example
 
 - The Service for the socket, or proxy service.
   Usually, if not defined on the socket definition, once a message is received,
@@ -131,41 +118,19 @@ as well.
   Since not all the services are prepared, as I mention before, here we will use
   a proxy service, that it's able to direct the communication in the right path.
   So this will start the objective service, and deliver the messages to it.
-  #+begin_example
-    [Unit]
-    Description=Intermediate proxy socket for EXAMPLE
-
-    Requires=EXAMPLE-container.service
-    After=EXAMPLE-container.service
-    Requires=EXAMPLE.socket
-    After=EXAMPLE.socket
-
-    [Service]
-    EnvironmentFile=SERVICE_PATH/.env
-    ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time="10m" ${SERVICE_IP}:${PORT_EXAMPLE}
-
-    NonBlocking=true
-  #+end_example
+  #+INCLUDE: "../socket-activation/templates/EXAMPLE.service" example
 - The containerized service
   This is the actual service that we want to run.
-  #+begin_example
-    [Unit]
-    Description=EXAMPLE container
+  #+INCLUDE: "../socket-activation/templates/EXAMPLE-container.service" example
 
-    [Service]
-    EnvironmentFile=SERVICE_PATH/.env
-    # Use docker or podman, as you prefer it
-    WorkingDirectory=SERVICE_PATH
-    ExecStart=make start-service c=EXAMPLE
-    ExecStop=make stop-service c=EXAMPLE
-
-    [Install]
-    WantedBy=multi-user.target
-  #+end_example
-
-  To summarize the idea this sequence diagram might help:
-#+results: 
-[[file:..assets/socket-activation-sequence.png]]
+ To summarize the idea this sequence diagram might help:
+ #+begin_src mermaid :file ..assets/socket-activation-sequence.png
+   sequenceDiagram
+    User--> Socket: First message attempt
+    Socket --> Socket service: Initiate the proxy service
+    Socket service --> Containerized service: Start the objective service, and delegate the messages.
+    Containerized service --> User: Respond to the user.
+#+end_src
 
 *Note:* To make this work with TCP/IP, it's required to use 2 different IP
 addresses, if you want to use the same port, or either use differnt port.
