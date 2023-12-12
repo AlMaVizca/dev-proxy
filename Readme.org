@@ -9,7 +9,9 @@
   - [[#network-manager-and-dnsmasq][Network manager and dnsmasq]]
 - [[#start-the-service][Start the service]]
 - [[#configure-backend-services][Configure backend services]]
-- [[#document-socket-activation][Document socket activation]]
+- [[#socket-activation][Socket activation]]
+  - [[#how-does-it-works][How does it works?]]
+  - [[#i-just-want-it-to-work][I just want it to work.]]
 
 * Motivation
 It's common for developers to work in more than one project at the same time and
@@ -84,4 +86,63 @@ networks:
 With that in place and after you start the backend service, you will be able to
 access it through example.docker
 
-* TODO Document socket activation
+* Socket activation
+The idea of socket activation is to not waste resources, so you start them only
+when you need it. While for the first attempt it might take a little bit to
+respond, *I think* it has a good compensation, it's like a sustainability
+concept. /To not use more than needed/.
+
+** How does it works?
+Nowadays it's common that GNU/Linux operative systems use [[https://systemd.io/][Systemd]]. I will leave
+it for you to learn it, if you are interested.
+
+So we will have 3 parts, It could be done in 2 if the service that you are
+trying to run is able to receive a socket as a parameter, and altough it's
+becoming more common, explainig a general solution for those services that don't
+make the idea more complete.
+
+On this example I will be using TCP/IP sockets, but you can choose file sockets
+as well.
+
+- The Socket service.
+  It's not a service per se, but a definition on where do we want systemd to be
+  monitoring or waiting for incomming communication.
+  #+INCLUDE: "./socket-activation/templates/EXAMPLE.socket" example
+
+- The Service for the socket, or proxy service.
+  Usually, if not defined on the socket definition, once a message is received,
+  the socket will try to start a service with the same name as the socket
+  definition, and pass the listening socket to the service.
+  Since not all the services are prepared, as I mention before, here we will use
+  a proxy service, that it's able to direct the communication in the right path.
+  So this will start the objective service, and deliver the messages to it.
+  #+INCLUDE: "./socket-activation/templates/EXAMPLE.service" example
+- The containerized service
+  This is the actual service that we want to run.
+  #+INCLUDE: "./socket-activation/templates/EXAMPLE-container.service" example
+
+ To summarize the idea this sequence diagram might help:
+ #+begin_src mermaid :file .assets/socket-activation-sequence.png
+   sequenceDiagram
+    User--> Socket: First message attempt
+    Socket --> Socket service: Initiate the proxy service
+    Socket service --> Containerized service: Start the objective service, and delegate the messages.
+    Containerized service --> User: Respond to the user.
+#+end_src
+
+#+RESULTS:
+[[file:.assets/socket-activation-sequence.png]]
+
+
+*Note:* To make this work with TCP/IP, it's required to use 2 different IP
+addresses, if you want to use the same port, or either use differnt port.
+I prefere different IPs because then I can have a proxy for docker and another
+for podman.
+
+** I just want it to work.
+From theory to making it works requires an extra effort, and because I don't
+like to waste time neither, you can just define your preferences on the /.env/
+file and run:
+#+begin_src sh
+  make install-sockets
+#+end_src
